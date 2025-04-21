@@ -1,4 +1,7 @@
-test.py
+*.png
+*.mp4
+*.log
+test.*
 images/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
