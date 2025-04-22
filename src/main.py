@@ -1,7 +1,8 @@
+from logging import getLogger
 import argparse
 import sys
 
-from moviepy.editor import ImageSequenceClip, AudioFileClip
+from moviepy import ImageSequenceClip, AudioFileClip
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -44,14 +45,14 @@ def main():
     args = parse_args()
 
     try:
-        audio = AudioFileClip(args.audio).set_duration(4)
+        audio = AudioFileClip(args.audio).with_duration(4)
     except Exception as e:
         print(f"Error loading audio file '{args.audio}': {e}", file=sys.stderr)
         sys.exit(1)
 
     # Build video clip from image sequence
-    clip = ImageSequenceClip(args.images, fps=args.fps, durations=len(args.images))
-    clip = clip.set_audio(audio)
+    clip:ImageSequenceClip = ImageSequenceClip(args.images, fps=args.fps, durations=len(args.images))
+    clip = clip.with_audio(audio)
     # Write the final video file
     try:
         clip.write_videofile(
@@ -64,7 +65,8 @@ def main():
             write_logfile=True,
         )
     except Exception as e:
-        print(f"Error writing video file '{args.output}': {e}", file=sys.stderr)
+        logger = getLogger("write_videofile")
+        logger.error(f"Error writing video file '{args.output}': {e}", stack_info=True)
         sys.exit(1)
 
 
