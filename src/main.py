@@ -2,7 +2,8 @@ from logging import getLogger
 import argparse
 import sys
 
-from moviepy import ImageSequenceClip, AudioFileClip
+from moviepy import ImageSequenceClip, AudioFileClip, clips_array
+from moviepy.video.fx import Rotate
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -45,14 +46,23 @@ def main():
     args = parse_args()
 
     try:
-        audio = AudioFileClip(args.audio).with_duration(4)
+        audio = AudioFileClip(args.audio).with_duration(len(args.images) / args.fps)
     except Exception as e:
         print(f"Error loading audio file '{args.audio}': {e}", file=sys.stderr)
         sys.exit(1)
 
     # Build video clip from image sequence
-    clip:ImageSequenceClip = ImageSequenceClip(args.images, fps=args.fps, durations=len(args.images))
+    clip:ImageSequenceClip = (
+        ImageSequenceClip(args.images, fps=args.fps, durations=len(args.images))
+    )
+
+    clip = clips_array([
+        [clip.with_effects([]), clip.with_effects([Rotate(90)])],
+        [clip.with_effects([Rotate(270)]), clip.with_effects([Rotate(180)])],
+    ])
+
     clip = clip.with_audio(audio)
+    
     # Write the final video file
     try:
         clip.write_videofile(
