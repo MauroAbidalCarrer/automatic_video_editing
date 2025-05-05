@@ -1,9 +1,13 @@
-from logging import getLogger
-import argparse
 import sys
+import os
+import argparse
+from logging import getLogger
 
 from moviepy import ImageSequenceClip, AudioFileClip, clips_array
 from moviepy.video.fx import Rotate
+
+logger = getLogger("main")
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -13,12 +17,9 @@ def parse_args():
         )
     )
     parser.add_argument(
-        'images',
-        nargs='+',
-        help=(
-            "List of image files (e.g. img1.png img2.jpg ...). "
-            "These will be shown in the order given."
-        )
+        '--images_folder',
+        required=True,
+        help=("Folder of the images that will be used for the clip.")
     )
     parser.add_argument(
         '--fps',
@@ -45,8 +46,8 @@ def parse_args():
     )
     args = parser.parse_args()
 
-    if len(args.images) < 1:
-        print("Error: you must supply at least one image file.", file=sys.stderr)
+    if not os.path.isdir(args.images_folder):
+        logger.error("images_folder path does not lead to a FOLDER!")
         sys.exit(1)
 
     return args
@@ -56,21 +57,26 @@ def main():
     args = parse_args()
 
     try:
-        audio = AudioFileClip(args.audio).with_duration(len(args.images) / args.fps)
+        audio = AudioFileClip(args.audio).with_duration(args.duration)
     except Exception as e:
-        logger = getLogger("main")
         logger.error(f"Could not load audio file '{args.audio}': {e}", exc_info=True)
         sys.exit(1)
 
-    # Build video clip from image sequence
-    clip:ImageSequenceClip = (
-        ImageSequenceClip(args.images, fps=args.fps, durations=len(args.images))
-    )
+    image_files = os.listdir(args.images_folder)
+    image_files = list(filter(lambda filename: os.path.splitext(filename)[1] == ".jpg", image_files))
+    nb_frames = int(args.fps * args.duration)
+    image_file_idx_it = map(lambda i: i % len(image_files), range(nb_frames))
+    image_files = [os.path.join(args.images_folder, image_files[i]) for i in image_file_idx_it]
 
-    clip = clips_array([
-        [clip.with_effects([]), clip.with_effects([Rotate(90)])],
-        [clip.with_effects([Rotate(270)]), clip.with_effects([Rotate(180)])],
-    ])
+    # Build video clip from image sequence
+    clip:ImageSequenceClip = ImageSequenceClip(image_files, fps=args.fps, durations=args.duration)
+    clip = (
+        clips_array([
+            [clip.with_effects([]), clip.with_effects([Rotate(270)])],
+            [clip.with_effects([Rotate(90)]), clip.with_effects([Rotate(180)])],
+        ])
+        .with_audio(audio)
+    )
 
     
     # Write the final video file
