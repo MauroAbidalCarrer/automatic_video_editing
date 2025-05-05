@@ -8,11 +8,10 @@ from moviepy.video.fx import Rotate
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Create a video from a sequence of images at a given frame rate "
-            "and overlay it with an audio track."
+            "Create a video from a sequence of images at a given frame rate, "
+            "looping to match a specified duration, and overlay it with an audio track."
         )
     )
-    # images will consume all but the last three positional arguments
     parser.add_argument(
         'images',
         nargs='+',
@@ -22,25 +21,36 @@ def parse_args():
         )
     )
     parser.add_argument(
-        'audio',
-        help="Path to the audio file to include (e.g. soundtrack.mp3)"
-    )
-    parser.add_argument(
-        'fps',
+        '--fps',
+        required=True,
         type=float,
         help="Frame rate (frames per second) for the output video"
     )
     parser.add_argument(
-        'output',
+        '--audio',
+        required=True,
+        help="Path to the audio file to include (e.g. soundtrack.mp3)"
+    )
+    parser.add_argument(
+        '--duration',
+        required=True,
+        type=float,
+        help="Total duration (in seconds) for the output video"
+    )
+    parser.add_argument(
+        '--output',
+        required=True,
+        type=str,
         help="Destination video file path (e.g. out.mp4)"
     )
     args = parser.parse_args()
-    # Make sure there are at least one image
+
     if len(args.images) < 1:
         print("Error: you must supply at least one image file.", file=sys.stderr)
         sys.exit(1)
 
     return args
+
 
 def main():
     args = parse_args()
@@ -62,7 +72,6 @@ def main():
         [clip.with_effects([Rotate(270)]), clip.with_effects([Rotate(180)])],
     ])
 
-    clip = clip.with_audio(audio)
     
     # Write the final video file
     try:
