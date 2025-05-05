@@ -48,7 +48,8 @@ def main():
     try:
         audio = AudioFileClip(args.audio).with_duration(len(args.images) / args.fps)
     except Exception as e:
-        print(f"Error loading audio file '{args.audio}': {e}", file=sys.stderr)
+        logger = getLogger("main")
+        logger.error(f"Could not load audio file '{args.audio}': {e}", exc_info=True)
         sys.exit(1)
 
     # Build video clip from image sequence
@@ -68,8 +69,8 @@ def main():
         clip.write_videofile(
             args.output,
             fps=args.fps,
-            codec='libx264',      # H.264 video codec
-            audio_codec='aac',     # AAC audio codec
+            codec='libx264',
+            audio_codec='aac',
             temp_audiofile='temp-audio.m4a',
             remove_temp=True,
             write_logfile=True,
