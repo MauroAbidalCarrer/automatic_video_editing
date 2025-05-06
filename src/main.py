@@ -2,14 +2,72 @@ import sys
 import os
 import argparse
 from logging import getLogger
+import tkinter as tk
+from tkinter import filedialog, messagebox
 
 from moviepy import ImageSequenceClip, AudioFileClip, clips_array
 from moviepy.video.fx import Rotate
 
 
-def main():
-    args = parse_args()
-    create_clip(**vars(args))
+def run_gui():
+    root = tk.Tk()
+    root.title("Video Clip Creator")
+
+    def browse_dir(entry):
+        path = filedialog.askdirectory()
+        if path:
+            entry.delete(0, tk.END)
+            entry.insert(0, path)
+
+    def browse_file(entry, filetypes=None, save=False):
+        if save:
+            path = filedialog.asksaveasfilename(defaultextension=".mp4")
+        else:
+            path = filedialog.askopenfilename(filetypes=filetypes)
+        if path:
+            entry.delete(0, tk.END)
+            entry.insert(0, path)
+
+    def submit():
+        try:
+            data = {
+                "images_dir": images_dir.get(),
+                "fps": float(fps.get()),
+                "audio_path": audio_path.get(),
+                "duration": float(duration.get()),
+                "output_path": output_path.get()
+            }
+            if not os.path.isdir(data["images_dir"]):
+                raise ValueError("Images directory is invalid.")
+            create_clip(**data)
+            messagebox.showinfo("Success", "Clip created successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    fields = [
+        ("Images Directory", browse_dir),
+        ("FPS", None),
+        ("Audio File", lambda e: browse_file(e, filetypes=[("Audio Files","*.mp3;*.wav;*.aac")])),
+        ("Duration (seconds)", None),
+        ("Output File", lambda e: browse_file(e, save=True)),
+    ]
+    entries = {}
+    for idx, (label_text, browse_func) in enumerate(fields):
+        tk.Label(root, text=label_text).grid(row=idx, column=0, sticky='w', pady=2)
+        entry = tk.Entry(root, width=40)
+        entry.grid(row=idx, column=1, pady=2)
+        if browse_func:
+            tk.Button(root, text="Browse", command=lambda e=entry, f=browse_func: f(e)).grid(row=idx, column=2, pady=2)
+        entries[label_text] = entry
+
+    images_dir = entries["Images Directory"]
+    fps = entries["FPS"]
+    audio_path = entries["Audio File"]
+    duration = entries["Duration (seconds)"]
+    output_path = entries["Output File"]
+
+    tk.Button(root, text="Create Video", command=submit).grid(row=len(fields), column=1, pady=10)
+    root.mainloop()
 
 
 def parse_args():
@@ -21,29 +79,24 @@ def parse_args():
     )
     parser.add_argument(
         'images_dir',
-        # required=True,
-        help=("directory of the images that will be used for the clip.")
+        help="Directory of the images that will be used for the clip."
     )
     parser.add_argument(
         'fps',
-        # required=True,
         type=float,
         help="Frame rate (frames per second) for the output video"
     )
     parser.add_argument(
         'audio_path',
-        # required=True,
         help="Path to the audio file to include (e.g. soundtrack.mp3)"
     )
     parser.add_argument(
         'duration',
-        # required=True,
         type=float,
         help="Total duration (in seconds) for the output video"
     )
     parser.add_argument(
         'output_path',
-        # required=True,
         type=str,
         help="Destination video file path (e.g. out.mp4)"
     )
@@ -70,16 +123,18 @@ def create_clip(images_dir: str, duration: float, fps: float, audio_path: str, o
     nb_frames = int(fps * duration)
     image_file_idx_it = map(lambda i: i % len(image_files), range(nb_frames))
     image_files = [os.path.join(images_dir, image_files[i]) for i in image_file_idx_it]
+    assert len(image_files), "No images found in the specified folder."
     # Build video clip from image sequence
     clip: ImageSequenceClip = ImageSequenceClip(image_files, fps=fps, durations=duration)
     clip = (
         clips_array([
-            [clip.with_effects([]), clip.with_effects([Rotate(270)])],
+            [clip, clip.with_effects([Rotate(270)])],
             [clip.with_effects([Rotate(90)]), clip.with_effects([Rotate(180)])],
         ])
         .with_audio(audio)
     )
-    # Write the final video file
+
+    # Write out
     try:
         clip.write_videofile(
             output_path,
@@ -94,6 +149,15 @@ def create_clip(images_dir: str, duration: float, fps: float, audio_path: str, o
         logger = getLogger("write_videofile")
         logger.error(f"Error writing video file '{output_path}': {e}", stack_info=True)
         sys.exit(1)
+
+
+def main():
+    # If no CLI args provided, launch GUI
+    if len(sys.argv) == 1:
+        run_gui()
+    else:
+        args = parse_args()
+        create_clip(**vars(args))
 
 
 if __name__ == '__main__':
