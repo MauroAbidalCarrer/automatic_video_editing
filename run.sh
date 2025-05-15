@@ -2,6 +2,22 @@
 
 set -e
 
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/mauro/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/mauro/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/mauro/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/mauro/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+
 # Define constants
 REPO_URL="https://github.com/MauroAbidalCarrer/automatic_video_editing.git"
 REPO_DIR="$HOME/repos/automatic_video_editing"
@@ -32,8 +48,8 @@ if ! command -v conda &> /dev/null; then
 
     # Initialize conda
     export PATH="$HOME/miniconda/bin:$PATH"
-    eval "$($HOME/miniconda/bin/conda shell.bash hook)"
 fi
+eval "$($HOME/miniconda/bin/conda shell.bash hook)"
 
 # Ensure Conda is available in this shell
 export PATH="$HOME/miniconda/bin:$PATH"
