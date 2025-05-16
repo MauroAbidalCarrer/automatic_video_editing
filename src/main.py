@@ -50,45 +50,58 @@ def create_clip(
 def main():
     st.title("Video Clip Creator")
 
-    # User input fields
+    # Create a temp dir for this session
+    if "tempdir" not in st.session_state:
+        st.session_state.tempdir = tempfile.TemporaryDirectory()
+        st.session_state.image_paths = []
+
+    tempdir = st.session_state.tempdir.name
+    image_paths = st.session_state.image_paths
+
+    st.subheader("Step 1: Capture Photos")
+
+    picture = st.camera_input("Take a photo")
+    if picture is not None:
+        img_idx = len(image_paths)
+        image_path = os.path.join(tempdir, f"photo_{img_idx}.jpg")
+        with open(image_path, "wb") as f:
+            f.write(picture.getbuffer())
+        image_paths.append(image_path)
+        st.success(f"Captured photo #{img_idx + 1}")
+
+    if len(image_paths) > 0:
+        st.write(f"{len(image_paths)} photo(s) taken.")
+        if st.button("Reset Photos"):
+            st.session_state.image_paths = []
+            st.experimental_rerun()
+
+    st.subheader("Step 2: Upload Audio")
+    audio_file = st.file_uploader("Upload Audio File", type=["mp3", "wav", "aac"])
+
+    st.subheader("Step 3: Set Parameters")
     fps = st.number_input("Frame Rate (fps)", min_value=1.0, value=24.0)
     duration = st.number_input("Video Duration (seconds)", min_value=1.0, value=10.0)
 
-    audio_file = st.file_uploader("Upload Audio File", type=["mp3", "wav", "aac"])
-    picture = st.camera_input("Take a picture")
-
-    if picture is None:
-        st.warning("Please take a picture with your camera.")
-        return
-    if audio_file is None:
-        st.warning("Please upload an audio file.")
+    if len(image_paths) == 0 or audio_file is None:
+        st.warning("Please take at least one photo and upload an audio file.")
         return
 
-    # Button to trigger video creation
     if st.button("Create Video"):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Save captured image
-            image_path = os.path.join(tmpdir, picture.name)
-            with open(image_path, "wb") as f:
-                f.write(picture.getbuffer())
-
-            # Save uploaded audio
-            audio_path = os.path.join(tmpdir, audio_file.name)
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
+            audio_path = os.path.join(tempdir, audio_file.name)
             with open(audio_path, "wb") as f:
                 f.write(audio_file.getbuffer())
 
-            output_path = os.path.join(tmpdir, "output.mp4")
-
             try:
                 create_clip(
-                    images_dir=os.path.dirname(image_path),
-                    duration=duration,
-                    fps=fps,
+                    image_paths=image_paths,
                     audio_path=audio_path,
-                    output_path=output_path,
+                    fps=fps,
+                    duration=duration,
+                    output_path=out_file.name
                 )
-                with open(output_path, "rb") as f:
-                    st.success("Video created successfully!")
+                st.success("Video created successfully!")
+                with open(out_file.name, "rb") as f:
                     st.video(f.read())
                     st.download_button("Download Video", f, file_name="output.mp4")
             except Exception as e:
