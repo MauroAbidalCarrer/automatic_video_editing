@@ -1,14 +1,17 @@
 # app.py
 import os
 import tempfile
-import streamlit as st
 from logging import getLogger
-from moviepy import ImageSequenceClip, AudioFileClip, clips_array
+
+import streamlit as st
 from moviepy.video.fx import Rotate
+from moviepy import ImageSequenceClip, AudioFileClip, clips_array
+
 
 logger = getLogger("streamlit_app")
 
-def create_clip_from_files(
+
+def create_clip(
     image_paths: list[str],
     audio_path: str,
     fps: float,
@@ -44,71 +47,53 @@ def create_clip_from_files(
     )
     return output_path
 
-st.title("Automatic Video Clip Creator")
+def main():
+    st.title("Video Clip Creator")
 
-# 1. Image files
-images = st.file_uploader(
-    "Upload your image sequence",
-    type=["png", "jpg", "jpeg"],
-    accept_multiple_files=True
-)
+    # User input fields
+    fps = st.number_input("Frame Rate (fps)", min_value=1.0, value=24.0)
+    duration = st.number_input("Video Duration (seconds)", min_value=1.0, value=10.0)
 
-# 2. Audio file
-audio = st.file_uploader(
-    "Upload an audio track",
-    type=["mp3", "wav", "aac"],
-    accept_multiple_files=False
-)
+    audio_file = st.file_uploader("Upload Audio File", type=["mp3", "wav", "aac"])
+    picture = st.camera_input("Take a picture")
 
-# 3. Parameters
-fps = st.number_input("Frame rate (fps)", min_value=1.0, value=24.0)
-duration = st.number_input("Total duration (s)", min_value=1.0, value=5.0)
+    if picture is None:
+        st.warning("Please take a picture with your camera.")
+        return
+    if audio_file is None:
+        st.warning("Please upload an audio file.")
+        return
 
-# 4. Output filename
-output_name = st.text_input("Output video filename", value="out.mp4")
-
-# 5. Process button
-if st.button("Create Video"):
-
-    if not images:
-        st.error("Please upload at least one image.")
-    elif audio is None:
-        st.error("Please upload an audio file.")
-    else:
-        # Save uploads to temp files
+    # Button to trigger video creation
+    if st.button("Create Video"):
         with tempfile.TemporaryDirectory() as tmpdir:
-            img_paths = []
-            for idx, img in enumerate(images):
-                path = os.path.join(tmpdir, f"img_{idx}{os.path.splitext(img.name)[1]}")
-                with open(path, "wb") as f:
-                    f.write(img.getbuffer())
-                img_paths.append(path)
+            # Save captured image
+            image_path = os.path.join(tmpdir, picture.name)
+            with open(image_path, "wb") as f:
+                f.write(picture.getbuffer())
 
-            audio_path = os.path.join(tmpdir, audio.name)
+            # Save uploaded audio
+            audio_path = os.path.join(tmpdir, audio_file.name)
             with open(audio_path, "wb") as f:
-                f.write(audio.getbuffer())
+                f.write(audio_file.getbuffer())
 
-            output_path = os.path.join(tmpdir, output_name)
+            output_path = os.path.join(tmpdir, "output.mp4")
 
             try:
-                st.info("Processing video, please wait...")
-                create_clip_from_files(
-                    image_paths=img_paths,
-                    audio_path=audio_path,
-                    fps=fps,
+                create_clip(
+                    images_dir=os.path.dirname(image_path),
                     duration=duration,
-                    output_path=output_path
+                    fps=fps,
+                    audio_path=audio_path,
+                    output_path=output_path,
                 )
-                st.success("Video created successfully!")
-                
-                # Offer for download
-                with open(output_path, "rb") as vf:
-                    st.download_button(
-                        "Download your video",
-                        data=vf,
-                        file_name=output_name,
-                        mime="video/mp4"
-                    )
+                with open(output_path, "rb") as f:
+                    st.success("Video created successfully!")
+                    st.video(f.read())
+                    st.download_button("Download Video", f, file_name="output.mp4")
             except Exception as e:
-                logger.error("Failed to create clip", exc_info=True)
-                st.error(f"Error: {e}")
+                st.error(f"An error occurred: {e}")
+
+
+if __name__ == "__main__":
+    main()
