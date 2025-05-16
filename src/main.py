@@ -1,131 +1,29 @@
-import sys
+# app.py
 import os
-import argparse
+import tempfile
+import streamlit as st
 from logging import getLogger
-import tkinter as tk
-from tkinter import filedialog, messagebox
-
 from moviepy import ImageSequenceClip, AudioFileClip, clips_array
 from moviepy.video.fx import Rotate
 
+logger = getLogger("streamlit_app")
 
-def run_gui():
-    root = tk.Tk()
-    root.title("Video Clip Creator")
+def create_clip_from_files(
+    image_paths: list[str],
+    audio_path: str,
+    fps: float,
+    duration: float,
+    output_path: str
+):
+    # Load audio
+    audio = AudioFileClip(audio_path).with_duration(duration)
 
-    def browse_dir(entry):
-        path = filedialog.askdirectory()
-        if path:
-            entry.delete(0, tk.END)
-            entry.insert(0, path)
-
-    def browse_file(entry, filetypes=None, save=False):
-        if save:
-            path = filedialog.asksaveasfilename(defaultextension=".mp4")
-        else:
-            path = filedialog.askopenfilename(filetypes=filetypes)
-        if path:
-            entry.delete(0, tk.END)
-            entry.insert(0, path)
-
-    def submit():
-        try:
-            data = {
-                "images_dir": images_dir.get(),
-                "fps": float(fps.get()),
-                "audio_path": audio_path.get(),
-                "duration": float(duration.get()),
-                "output_path": output_path.get()
-            }
-            if not os.path.isdir(data["images_dir"]):
-                raise ValueError("Images directory is invalid.")
-            create_clip(**data)
-            messagebox.showinfo("Success", "Clip created successfully!")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-
-    fields = [
-        ("Images Directory", browse_dir),
-        ("FPS", None),
-        ("Audio File", lambda e: browse_file(e, filetypes=[("Audio Files","*.mp3;*.wav;*.aac")])),
-        ("Duration (seconds)", None),
-        ("Output File", lambda e: browse_file(e, save=True)),
-    ]
-    entries = {}
-    for idx, (label_text, browse_func) in enumerate(fields):
-        tk.Label(root, text=label_text).grid(row=idx, column=0, sticky='w', pady=2)
-        entry = tk.Entry(root, width=40)
-        entry.grid(row=idx, column=1, pady=2)
-        if browse_func:
-            tk.Button(root, text="Browse", command=lambda e=entry, f=browse_func: f(e)).grid(row=idx, column=2, pady=2)
-        entries[label_text] = entry
-
-    images_dir = entries["Images Directory"]
-    fps = entries["FPS"]
-    audio_path = entries["Audio File"]
-    duration = entries["Duration (seconds)"]
-    output_path = entries["Output File"]
-
-    tk.Button(root, text="Create Video", command=submit).grid(row=len(fields), column=1, pady=10)
-    root.mainloop()
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description=(
-            "Create a video from a sequence of images at a given frame rate, "
-            "looping to match a specified duration, and overlay it with an audio track."
-        )
-    )
-    parser.add_argument(
-        'images_dir',
-        help="Directory of the images that will be used for the clip."
-    )
-    parser.add_argument(
-        'fps',
-        type=float,
-        help="Frame rate (frames per second) for the output video"
-    )
-    parser.add_argument(
-        'audio_path',
-        help="Path to the audio file to include (e.g. soundtrack.mp3)"
-    )
-    parser.add_argument(
-        'duration',
-        type=float,
-        help="Total duration (in seconds) for the output video"
-    )
-    parser.add_argument(
-        'output_path',
-        type=str,
-        help="Destination video file path (e.g. out.mp4)"
-    )
-    args = parser.parse_args()
-
-    if not os.path.isdir(args.images_dir):
-        getLogger("main").error("images_dir path does not lead to a directory!")
-        sys.exit(1)
-
-    return args
-
-
-def create_clip(images_dir: str, duration: float, fps: float, audio_path: str, output_path: str):
-    logger = getLogger("main")
-    # Load audio file
-    try:
-        audio = AudioFileClip(audio_path).with_duration(duration)
-    except Exception as e:
-        logger.error(f"Could not load audio file '{audio_path}': {e}", exc_info=True)
-        sys.exit(1)
-    # Create list of the image files paths
-    image_files = os.listdir(images_dir)
-    image_files = list(filter(lambda filename: os.path.splitext(filename)[1] == ".jpg", image_files))
+    # Loop or trim image sequence to match duration
     nb_frames = int(fps * duration)
-    image_file_idx_it = map(lambda i: i % len(image_files), range(nb_frames))
-    image_files = [os.path.join(images_dir, image_files[i]) for i in image_file_idx_it]
-    assert len(image_files), "No images found in the specified folder."
-    # Build video clip from image sequence
-    clip: ImageSequenceClip = ImageSequenceClip(image_files, fps=fps, durations=duration)
+    paths = [image_paths[i % len(image_paths)] for i in range(nb_frames)]
+
+    # Build the video
+    clip = ImageSequenceClip(paths, fps=fps)
     clip = (
         clips_array([
             [clip, clip.with_effects([Rotate(270)])],
@@ -134,31 +32,83 @@ def create_clip(images_dir: str, duration: float, fps: float, audio_path: str, o
         .with_audio(audio)
     )
 
-    # Write out
-    try:
-        clip.write_videofile(
-            output_path,
-            fps=fps,
-            codec='libx264',
-            audio_codec='aac',
-            temp_audiofile='temp-audio.m4a',
-            remove_temp=True,
-            write_logfile=False,
-        )
-    except Exception as e:
-        logger = getLogger("write_videofile")
-        logger.error(f"Error writing video file '{output_path}': {e}", stack_info=True)
-        sys.exit(1)
+    # Write file
+    clip.write_videofile(
+        output_path,
+        fps=fps,
+        codec="libx264",
+        audio_codec="aac",
+        temp_audiofile="temp-audio.m4a",
+        remove_temp=True,
+        write_logfile=False,
+    )
+    return output_path
 
+st.title("Automatic Video Clip Creator")
 
-def main():
-    # If no CLI args provided, launch GUI
-    if len(sys.argv) == 1:
-        run_gui()
+# 1. Image files
+images = st.file_uploader(
+    "Upload your image sequence",
+    type=["png", "jpg", "jpeg"],
+    accept_multiple_files=True
+)
+
+# 2. Audio file
+audio = st.file_uploader(
+    "Upload an audio track",
+    type=["mp3", "wav", "aac"],
+    accept_multiple_files=False
+)
+
+# 3. Parameters
+fps = st.number_input("Frame rate (fps)", min_value=1.0, value=24.0)
+duration = st.number_input("Total duration (s)", min_value=1.0, value=5.0)
+
+# 4. Output filename
+output_name = st.text_input("Output video filename", value="out.mp4")
+
+# 5. Process button
+if st.button("Create Video"):
+
+    if not images:
+        st.error("Please upload at least one image.")
+    elif audio is None:
+        st.error("Please upload an audio file.")
     else:
-        args = parse_args()
-        create_clip(**vars(args))
+        # Save uploads to temp files
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_paths = []
+            for idx, img in enumerate(images):
+                path = os.path.join(tmpdir, f"img_{idx}{os.path.splitext(img.name)[1]}")
+                with open(path, "wb") as f:
+                    f.write(img.getbuffer())
+                img_paths.append(path)
 
+            audio_path = os.path.join(tmpdir, audio.name)
+            with open(audio_path, "wb") as f:
+                f.write(audio.getbuffer())
 
-if __name__ == '__main__':
-    main()
+            output_path = os.path.join(tmpdir, output_name)
+
+            try:
+                st.info("Processing video, please wait...")
+                create_clip_from_files(
+                    image_paths=img_paths,
+                    audio_path=audio_path,
+                    fps=fps,
+                    duration=duration,
+                    output_path=output_path
+                )
+                st.success("Video created successfully!")
+                
+                # Offer for download
+                with open(output_path, "rb") as vf:
+                    st.download_button(
+                        "Download your video",
+                        data=vf,
+                        file_name=output_name,
+                        mime="video/mp4"
+                    )
+            except Exception as e:
+                logger.error("Failed to create clip", exc_info=True)
+                st.error(f"Error: {e}")
