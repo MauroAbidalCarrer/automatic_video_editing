@@ -13,7 +13,10 @@ def create_clip(
     audio = AudioFileClip(audio_path).with_duration(duration)
     # Loop or trim image sequence to match duration
     nb_frames = int(fps * duration)
+
     paths = [image_paths[i % len(image_paths)] for i in range(nb_frames)]
+    print(paths)
+    print("indices:", [i % len(image_paths) for i in range(nb_frames)])
     # Build the video
     clip = ImageSequenceClip(paths, fps=fps)
     clip = crop_clip_to_square(clip)
