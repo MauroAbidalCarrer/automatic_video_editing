@@ -35,11 +35,8 @@ def main():
             st.experimental_rerun()
 
     st.subheader("Step 2: Upload Audio")
-    audio_file = st.file_uploader(
-        label="Upload Audio File",
-        # type=["mp3", "wav", "aac"],
-    )
-    st.text(str(audio_file))
+    audio_file = st.file_uploader(label="Upload Audio File")
+    
     st.subheader("Step 3: Set Parameters")
     fps = st.number_input("Frame Rate (fps)", min_value=1.0, value=24.0)
     duration = st.number_input("Video Duration (seconds)", min_value=1.0, value=10.0)
