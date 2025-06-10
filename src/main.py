@@ -75,9 +75,7 @@ def main():
 
 def create_audio_track_inputs(line_index: int):
     audio_tracks = session_state.audio_tracks
-    print("len(audio_tracks):", len(audio_tracks), len(audio_tracks) <= line_index)
     if len(audio_tracks) <= line_index:
-        print("Adding new audio track")
         audio_track = defaultdict(
             file=None,
             bpm=DEFAULT_BPM,
