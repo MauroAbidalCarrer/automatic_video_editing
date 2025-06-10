@@ -12,11 +12,12 @@ from config import DEFAULT_BPM, DEFAULT_DURATION, NB_KEYS_PER_AUDIO_TRACK
 def main():
     st.title("Video Clip Creator")
 
-    # Create a temp dir for this session
+    # Set up the session
     if "tempdir" not in session_state:
         session_state.tempdir = tempfile.TemporaryDirectory()
         session_state.image_paths = []
         session_state.prev_picture = None
+        session_state.prev_uploaded_pictures = None
         # list of dicts containing keys file, bpm and duration
         session_state.audio_tracks = [mk_track_dict()]
 
@@ -39,19 +40,8 @@ def main():
     if st.button("Reset Photos"):
         session_state.image_paths = []
     # Take pictures
-    picture = st.camera_input("Take a photo")
-    # Rubber band aid fix: 
-    # In case the clear photo button was not pressed the st.camera_input will return the last picture taken
-    # This would erroneously add the same picture to the image paths.
-    if picture is not None and session_state.prev_picture != picture:
-        session_state.prev_picture = picture 
-        img_idx = len(session_state.image_paths)
-        image_path = os.path.join(session_state.tempdir.name, f"photo_{img_idx}.jpg")
-        with open(image_path, "wb") as f:
-            f.write(picture.getbuffer())
-        session_state.image_paths.append(image_path)
-        st.success(f"Captured photo #{img_idx + 1}")
-        # Display nb of pictures taken
+    picture_from_camera()
+    # Display nb of pictures taken
     st.write(f"{len(session_state.image_paths)} photo(s) taken.")
     # Check that at least one picture has been taken
     if len(session_state.image_paths) == 0:
@@ -96,6 +86,19 @@ def create_audio_track_inputs(track_idx: int, track: defaultdict):
             if st.button("Remove track", key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 3):
                 del session_state.audio_tracks[track_idx]
                 st.rerun()
+
+def picture_from_camera():
+    picture = st.camera_input("Take a photo")
+    # Rubber band aid fix: 
+    # In case the clear photo button was not pressed the st.camera_input will return the last picture taken.
+    # This would erroneously add the same picture to the image paths.
+    if picture is not None and session_state.prev_picture != picture:
+        session_state.prev_picture = picture 
+        img_idx = len(session_state.image_paths)
+        image_path = os.path.join(session_state.tempdir.name, f"photo_{img_idx}.jpg")
+        with open(image_path, "wb") as f:
+            f.write(picture.getbuffer())
+        session_state.image_paths.append(image_path)
 
 def create_and_display_video(track_idx: int, track: defaultdict):
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
