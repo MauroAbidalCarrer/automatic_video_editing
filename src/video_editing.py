@@ -15,12 +15,9 @@ def create_clip(
     nb_frames = int(fps * duration)
 
     paths = [image_paths[i % len(image_paths)] for i in range(nb_frames)]
-    print(paths)
-    print("indices:", [i % len(image_paths) for i in range(nb_frames)])
     # Build the video
     clip = ImageSequenceClip(paths, fps=fps)
     clip = crop_clip_to_square(clip)
-    print("shape after cropping:", clip.get_frame(0).shape[:2])
     clip = (
         clips_array([
             [clip, clip.with_effects([Rotate(270)])],
