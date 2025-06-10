@@ -13,6 +13,7 @@ def main():
     if "tempdir" not in st.session_state:
         st.session_state.tempdir = tempfile.TemporaryDirectory()
         st.session_state.image_paths = []
+        st.session_state.prev_picture = None
 
     tempdir = st.session_state.tempdir.name
     image_paths = st.session_state.image_paths
@@ -20,7 +21,8 @@ def main():
     st.subheader("Step 1: Capture Photos")
 
     picture = st.camera_input("Take a photo")
-    if picture is not None:
+    if picture is not None and st.session_state.prev_picture != picture:
+        st.session_state.prev_picture = picture
         img_idx = len(image_paths)
         image_path = os.path.join(tempdir, f"photo_{img_idx}.jpg")
         with open(image_path, "wb") as f:
