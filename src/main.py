@@ -28,8 +28,11 @@ def main():
         session_state.image_paths = []
     # Take pictures
     picture = st.camera_input("Take a photo")
+    # Rubber band aid fix: 
+    # In case the clear photo button was not pressed the st.camera_input will return the last picture taken
+    # This would erroneously add the same picture to the image paths.
     if picture is not None and session_state.prev_picture != picture:
-        session_state.prev_picture = picture
+        session_state.prev_picture = picture 
         img_idx = len(session_state.image_paths)
         image_path = os.path.join(session_state.tempdir.name, f"photo_{img_idx}.jpg")
         with open(image_path, "wb") as f:
