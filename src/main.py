@@ -41,6 +41,21 @@ def main():
         session_state.image_paths = []
     # Take pictures
     picture_from_camera()
+    # Add image uploader to upload multiple images
+    uploaded_images = st.file_uploader(
+        "Upload image(s)",
+        accept_multiple_files=True,
+        key="uploaded_images",
+    )
+    if uploaded_images and session_state.prev_uploaded_pictures != uploaded_images:
+        session_state.prev_uploaded_pictures = uploaded_images
+        for uploaded_img in uploaded_images:
+            img_idx = len(session_state.image_paths)
+            image_path = os.path.join(session_state.tempdir.name, f"uploaded_{img_idx}.jpg")
+            with open(image_path, "wb") as f:
+                f.write(uploaded_img.getbuffer())
+            session_state.image_paths.append(image_path)
+
     # Display nb of pictures taken
     st.write(f"{len(session_state.image_paths)} photo(s) taken.")
     # Check that at least one picture has been taken
