@@ -88,11 +88,23 @@ def create_audio_track_inputs(line_index: int):
         audio_track = session_state.audio_tracks[line_index]
     col1, col2, col3 = st.columns([3, 1, 1])
     with col1:
-        audio_track["file"] = st.file_uploader("Audio File")
+        audio_track["file"] = st.file_uploader(
+            "Audio File",
+            key=line_index * 3,
+        )
     with col2:
-        audio_track["bpm"] = st.number_input("BPM", min_value=1.0, value=DEFAULT_BPM)
+        audio_track["bpm"] = st.number_input(
+            "BPM",
+            min_value=1.0,
+            value=DEFAULT_BPM,
+            key=line_index * 3 + 1)
     with col3:
-        audio_track["duration"] = st.number_input("Duration (s)", min_value=1.0, value=DEFAULT_DURATION)
+        audio_track["duration"] = st.number_input(
+            "Duration (s)",
+            min_value=1.0,
+            value=DEFAULT_DURATION,
+            key=line_index * 3 + 2
+        )
 
 if __name__ == "__main__":
     main()
