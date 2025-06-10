@@ -13,8 +13,7 @@ def create_clip(
     audio = AudioFileClip(audio_path).with_duration(duration)
     fps = bpm / 60
     # Loop or trim image sequence to match duration
-    nb_frames = int(fps * duration)
-
+    nb_frames = max(int(fps * duration), 1)
     paths = [image_paths[i % len(image_paths)] for i in range(nb_frames)]
     # Build the video
     clip = ImageSequenceClip(paths, fps=fps)
