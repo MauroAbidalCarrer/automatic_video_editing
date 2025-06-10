@@ -60,18 +60,15 @@ def main():
             audio_path = os.path.join(tempdir, audio_file.name)
             with open(audio_path, "wb") as f:
                 f.write(audio_file.getbuffer())
-
-            with st.empty():
-                st.info("Processing video, please wait...")
-                create_clip(
-                    image_paths=image_paths,
-                    audio_path=audio_path,
-                    bpm=bpm,
-                    duration=duration,
-                    output_path=out_file.name
-                )
-                f = open(out_file.name, "rb")
-                st.video(f.read())
+            create_clip(
+                image_paths=image_paths,
+                audio_path=audio_path,
+                bpm=bpm,
+                duration=duration,
+                output_path=out_file.name
+            )
+            f = open(out_file.name, "rb")
+            st.video(f.read())
             st.download_button("Download Video", f, file_name="output.mp4")
             f.close()
 
