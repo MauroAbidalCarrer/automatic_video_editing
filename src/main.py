@@ -64,6 +64,13 @@ def main():
     if len(session_state.image_paths) == 0:
         st.warning("Please take at least one photo and upload an audio file.")
         return
+    st.subheader("Preview")
+    display_image_carousel(session_state.image_paths)
+    # cols = st.columns(min(len(session_state.image_paths), 2))  # Display up to 5 images per row
+    # for idx, image_path in enumerate(session_state.image_paths):
+    #     with cols[idx % 5]:  # Wrap images across rows
+    #         st.image(image_path, use_container_width=True, caption=f"#{idx + 1}")
+
 
     # Videos
     if st.button("Create Video"):
@@ -116,6 +123,25 @@ def picture_from_camera():
         with open(image_path, "wb") as f:
             f.write(picture.getbuffer())
         session_state.image_paths.append(image_path)
+
+from streamlit.components.v1 import html
+import base64
+
+def display_image_carousel(image_paths):
+    # Read and encode all images to base64
+    base64_images = []
+    for path in image_paths:
+        with open(path, "rb") as img_file:
+            b64 = base64.b64encode(img_file.read()).decode("utf-8")
+            base64_images.append(f"data:image/jpeg;base64,{b64}")
+
+    # Build the HTML carousel
+    html_code = f"""
+    <div style="display: flex; overflow-x: auto; gap: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 10px;">
+        {''.join([f'<img src="{src}" style="height: 150px; border-radius: 8px;" />' for src in base64_images])}
+    </div>
+    """
+    html(html_code, height=180)
 
 def create_and_display_video(track_idx: int, track: defaultdict):
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
