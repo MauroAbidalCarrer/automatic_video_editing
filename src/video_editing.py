@@ -5,12 +5,13 @@ from moviepy import Clip, ImageSequenceClip, AudioFileClip, clips_array
 def create_clip(
     image_paths: list[str],
     audio_path: str,
-    fps: float,
+    bpm: float,
     duration: float,
     output_path: str
 ):
     # Load audio
     audio = AudioFileClip(audio_path).with_duration(duration)
+    fps = bpm / 60
     # Loop or trim image sequence to match duration
     nb_frames = int(fps * duration)
 

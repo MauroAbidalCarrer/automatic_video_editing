@@ -40,7 +40,7 @@ def main():
     audio_file = st.file_uploader(label="Upload Audio File")
     
     st.subheader("Step 3: Set Parameters")
-    fps = st.number_input("Frame Rate (fps)", min_value=1.0, value=24.0)
+    bpm = st.number_input("Beat per Minute", min_value=1.0, value=24.0)
     duration = st.number_input("Video Duration (seconds)", min_value=1.0, value=10.0)
 
     if len(image_paths) == 0 or audio_file is None:
@@ -58,7 +58,7 @@ def main():
                 create_clip(
                     image_paths=image_paths,
                     audio_path=audio_path,
-                    fps=fps,
+                    bpm=bpm,
                     duration=duration,
                     output_path=out_file.name
                 )
