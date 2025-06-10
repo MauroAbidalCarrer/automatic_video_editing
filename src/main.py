@@ -20,8 +20,21 @@ def main():
         # list of dicts containing keys file, bpm and duration
         session_state.audio_tracks = [mk_track_dict()]
 
+    # Audio tracks
+    st.subheader("Audio tracks")
+    # Add audio track
+    if st.button("Add new audio track"):
+        session_state.audio_tracks.append(mk_track_dict())
+    # audio track inputs
+    for track_idx, track in enumerate(session_state.audio_tracks):
+        create_audio_track_inputs(track_idx, track)
+    track_has_file = lambda track: track["file"] is not None
+    if not all(map(track_has_file, session_state.audio_tracks)):
+        st.warning("Please provide an audio file for all the audio tracks.")
+        return
+
     # Pictures
-    st.subheader("Step 1: Capture Photos")
+    st.subheader("Pictures")
     # Reset pictures
     if st.button("Reset Photos"):
         session_state.image_paths = []
@@ -43,19 +56,6 @@ def main():
     # Check that at least one picture has been taken
     if len(session_state.image_paths) == 0:
         st.warning("Please take at least one photo and upload an audio file.")
-        return
-
-    # Audio tracks
-    st.subheader("Audio tracks")
-    # Add audio track
-    if st.button("Add new audio track"):
-        session_state.audio_tracks.append(mk_track_dict())
-    # audio track inputs
-    for track_idx, track in enumerate(session_state.audio_tracks):
-        create_audio_track_inputs(track_idx, track)
-    track_has_file = lambda track: track["file"] is not None
-    if not all(map(track_has_file, session_state.audio_tracks)):
-        st.warning("Please provide an audio file for all the audio tracks.")
         return
 
     # Videos
