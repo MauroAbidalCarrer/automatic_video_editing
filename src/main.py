@@ -18,8 +18,7 @@ def main():
         session_state.image_paths = []
         session_state.prev_picture = None
         # list of dicts containing keys file, bpm and duration
-        session_state.audio_tracks = []
-        session_state.nb_tracks = 3
+        session_state.audio_tracks = [mk_track_dict()]
 
     # Pictures
     st.subheader("Step 1: Capture Photos")
@@ -50,10 +49,10 @@ def main():
     st.subheader("Audio tracks")
     # Add audio track
     if st.button("Add new audio track"):
-        session_state.nb_tracks += 1
+        session_state.audio_tracks.append(mk_track_dict())
     # audio track inputs
-    for track_idx in range(session_state.nb_tracks):
-        create_audio_track_inputs(track_idx)
+    for track_idx, track in enumerate(session_state.audio_tracks):
+        create_audio_track_inputs(track_idx, track)
     track_has_file = lambda track: track["file"] is not None
     if not all(map(track_has_file, session_state.audio_tracks)):
         st.warning("Please provide an audio file for all the audio tracks.")
@@ -64,36 +63,39 @@ def main():
         for track_idx, track in enumerate(session_state.audio_tracks):
             create_and_display_video(track_idx, track)
 
-def create_audio_track_inputs(track_idx: int):
-    audio_tracks = session_state.audio_tracks
-    if len(audio_tracks) <= track_idx:
-        audio_track = defaultdict(
+def mk_track_dict() -> defaultdict:
+    return defaultdict(
             file=None,
             bpm=DEFAULT_BPM,
             duration=DEFAULT_DURATION
         )
-        audio_tracks.append(audio_track)
-    else:
-        audio_track = session_state.audio_tracks[track_idx]
-    col1, col2, col3 = st.columns([3, 1, 1])
-    with col1:
-        audio_track["file"] = st.file_uploader(
+
+def create_audio_track_inputs(track_idx: int, track: defaultdict):
+    spec = [3, 1, 1, 1] if track_idx else [3, 1, 1]
+    cols = st.columns(spec)
+    with cols[0]:
+        track["file"] = st.file_uploader(
             "Audio File",
             key=track_idx * NB_KEYS_PER_AUDIO_TRACK,
         )
-    with col2:
-        audio_track["bpm"] = st.number_input(
+    with cols[1]:
+        track["bpm"] = st.number_input(
             "BPM",
             min_value=1.0,
             value=DEFAULT_BPM,
             key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 1)
-    with col3:
-        audio_track["duration"] = st.number_input(
+    with cols[2]:
+        track["duration"] = st.number_input(
             "Duration (s)",
             min_value=1.0,
             value=DEFAULT_DURATION,
             key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 2
         )
+    if track_idx:
+        with cols[3]:
+            if st.button("Remove track", key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 3):
+                del session_state.audio_tracks[track_idx]
+                st.rerun()
 
 def create_and_display_video(track_idx: int, track: defaultdict):
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
@@ -113,7 +115,7 @@ def create_and_display_video(track_idx: int, track: defaultdict):
             "Download Video",
             f,
             file_name="output.mp4",
-            key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 3
+            key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 4
         )
         f.close()
 
