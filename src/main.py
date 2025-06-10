@@ -38,9 +38,9 @@ def main():
 
     st.subheader("Step 2: Upload Audio")
     audio_file = st.file_uploader(label="Upload Audio File")
-    
+
     st.subheader("Step 3: Set Parameters")
-    fps = st.number_input("Frame Rate (fps)", min_value=1.0, value=24.0)
+    bpm = st.number_input("Beats per Minute", min_value=1.0, value=24.0)
     duration = st.number_input("Video Duration (seconds)", min_value=1.0, value=10.0)
 
     if len(image_paths) == 0 or audio_file is None:
@@ -53,21 +53,18 @@ def main():
             with open(audio_path, "wb") as f:
                 f.write(audio_file.getbuffer())
 
-            try:
-                st.info("Processing video, please wait...")
-                create_clip(
-                    image_paths=image_paths,
-                    audio_path=audio_path,
-                    fps=fps,
-                    duration=duration,
-                    output_path=out_file.name
-                )
-                st.success("Video created successfully!")
-                with open(out_file.name, "rb") as f:
-                    st.video(f.read())
-                    st.download_button("Download Video", f, file_name="output.mp4")
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
-                
+            st.info("Processing video, please wait...")
+            create_clip(
+                image_paths=image_paths,
+                audio_path=audio_path,
+                bpm=bpm,
+                duration=duration,
+                output_path=out_file.name
+            )
+            st.success("Video created successfully!")
+            with open(out_file.name, "rb") as f:
+                st.video(f.read())
+                st.download_button("Download Video", f, file_name="output.mp4")
+
 if __name__ == "__main__":
     main()
