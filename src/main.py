@@ -21,9 +21,6 @@ def main():
         session_state.audio_tracks = []
         session_state.nb_tracks = 3
 
-    tempdir = session_state.tempdir.name
-    image_paths = session_state.image_paths
-
     # Pictures
     st.subheader("Step 1: Capture Photos")
     # Reset pictures
@@ -33,16 +30,16 @@ def main():
     picture = st.camera_input("Take a photo")
     if picture is not None and session_state.prev_picture != picture:
         session_state.prev_picture = picture
-        img_idx = len(image_paths)
-        image_path = os.path.join(tempdir, f"photo_{img_idx}.jpg")
+        img_idx = len(session_state.image_paths)
+        image_path = os.path.join(session_state.tempdir.name, f"photo_{img_idx}.jpg")
         with open(image_path, "wb") as f:
             f.write(picture.getbuffer())
-        image_paths.append(image_path)
+        session_state.image_paths.append(image_path)
         st.success(f"Captured photo #{img_idx + 1}")
         # Display nb of pictures taken
-    st.write(f"{len(image_paths)} photo(s) taken.")
+    st.write(f"{len(session_state.image_paths)} photo(s) taken.")
     # Check that at least one picture has been taken
-    if len(image_paths) == 0:
+    if len(session_state.image_paths) == 0:
         st.warning("Please take at least one photo and upload an audio file.")
         return
     # Audio tracks
@@ -55,27 +52,8 @@ def main():
         return
     # Videos
     if st.button("Create Video"):
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
-            for track_idx, track in enumerate(session_state.audio_tracks):
-                audio_path = os.path.join(tempdir, track["file"].name)
-                with open(audio_path, "wb") as f:
-                    f.write(track["file"].getbuffer())
-                create_clip(
-                    image_paths=image_paths,
-                    audio_path=audio_path,
-                    bpm=track["bpm"],
-                    duration=track["duration"],
-                    output_path=out_file.name
-                )
-                f = open(out_file.name, "rb")
-                st.video(f.read())
-                st.download_button(
-                    "Download Video",
-                    f,
-                    file_name="output.mp4",
-                    key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 3
-                )
-                f.close()
+        for track_idx, track in enumerate(session_state.audio_tracks):
+            create_and_display_video(track_idx, track)
 
 def create_audio_track_inputs(track_idx: int):
     audio_tracks = session_state.audio_tracks
@@ -107,6 +85,28 @@ def create_audio_track_inputs(track_idx: int):
             value=DEFAULT_DURATION,
             key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 2
         )
+
+def create_and_display_video(track_idx: int, track: defaultdict):
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
+        audio_path = os.path.join(session_state.tempdir.name, track["file"].name)
+        with open(audio_path, "wb") as f:
+            f.write(track["file"].getbuffer())
+        create_clip(
+            image_paths=session_state.image_paths,
+            audio_path=audio_path,
+            bpm=track["bpm"],
+            duration=track["duration"],
+            output_path=out_file.name
+        )
+        f = open(out_file.name, "rb")
+        st.video(f.read())
+        st.download_button(
+            "Download Video",
+            f,
+            file_name="output.mp4",
+            key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 3
+        )
+        f.close()
 
 if __name__ == "__main__":
     main()
