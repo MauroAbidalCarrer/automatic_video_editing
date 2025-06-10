@@ -35,13 +35,17 @@ def main():
         image_paths.append(image_path)
         st.success(f"Captured photo #{img_idx + 1}")
 
+    st.subheader("Step 2 & 3: Audio and Parameters")
+    col1, col2, col3 = st.columns([3, 1, 1])
 
-    st.subheader("Step 2: Upload Audio")
-    audio_file = st.file_uploader(label="Upload Audio File")
+    with col1:
+        audio_file = st.file_uploader("Audio File")
 
-    st.subheader("Step 3: Set Parameters")
-    bpm = st.number_input("Beats per Minute", min_value=1.0, value=24.0)
-    duration = st.number_input("Video Duration (seconds)", min_value=1.0, value=10.0)
+    with col2:
+        bpm = st.number_input("BPM", min_value=1.0, value=24.0)
+
+    with col3:
+        duration = st.number_input("Duration (s)", min_value=1.0, value=10.0)
 
     if len(image_paths) == 0 or audio_file is None:
         st.warning("Please take at least one photo and upload an audio file.")
