@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit import session_state
 
 from video_editing import create_clip
-from config import DEFAULT_BPM, DEFAULT_DURATION, NB_KEYS_PER_SECTION
+from config import DEFAULT_BPM, DEFAULT_DURATION, NB_KEYS_PER_AUDIO_TRACK
 
 
 def main():
@@ -73,7 +73,7 @@ def main():
                     "Download Video",
                     f,
                     file_name="output.mp4",
-                    key=track_idx * NB_KEYS_PER_SECTION + 3
+                    key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 3
                 )
                 f.close()
 
@@ -92,20 +92,20 @@ def create_audio_track_inputs(track_idx: int):
     with col1:
         audio_track["file"] = st.file_uploader(
             "Audio File",
-            key=track_idx * NB_KEYS_PER_SECTION,
+            key=track_idx * NB_KEYS_PER_AUDIO_TRACK,
         )
     with col2:
         audio_track["bpm"] = st.number_input(
             "BPM",
             min_value=1.0,
             value=DEFAULT_BPM,
-            key=track_idx * NB_KEYS_PER_SECTION + 1)
+            key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 1)
     with col3:
         audio_track["duration"] = st.number_input(
             "Duration (s)",
             min_value=1.0,
             value=DEFAULT_DURATION,
-            key=track_idx * NB_KEYS_PER_SECTION + 2
+            key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 2
         )
 
 if __name__ == "__main__":
