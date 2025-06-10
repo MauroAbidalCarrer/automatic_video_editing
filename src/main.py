@@ -58,18 +58,19 @@ def main():
             with open(audio_path, "wb") as f:
                 f.write(audio_file.getbuffer())
 
-            st.info("Processing video, please wait...")
-            create_clip(
-                image_paths=image_paths,
-                audio_path=audio_path,
-                bpm=bpm,
-                duration=duration,
-                output_path=out_file.name
-            )
-            st.success("Video created successfully!")
-            with open(out_file.name, "rb") as f:
+            with st.empty():
+                st.info("Processing video, please wait...")
+                create_clip(
+                    image_paths=image_paths,
+                    audio_path=audio_path,
+                    bpm=bpm,
+                    duration=duration,
+                    output_path=out_file.name
+                )
+                f = open(out_file.name, "rb")
                 st.video(f.read())
-                st.download_button("Download Video", f, file_name="output.mp4")
+            st.download_button("Download Video", f, file_name="output.mp4")
+            f.close()
 
 if __name__ == "__main__":
     main()
