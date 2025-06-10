@@ -17,7 +17,7 @@ def main():
         session_state.tempdir = tempfile.TemporaryDirectory()
         session_state.image_paths = []
         session_state.prev_picture = None
-        session_state.prev_uploaded_pictures = None
+        session_state.session_key = 0
         # list of dicts containing keys file, bpm and duration
         session_state.audio_tracks = [mk_track_dict()]
 
@@ -45,16 +45,18 @@ def main():
     uploaded_images = st.file_uploader(
         "Upload image(s)",
         accept_multiple_files=True,
-        key="uploaded_images",
+        key=f"uploaded_images_{session_state.session_key}",
+        label_visibility="visible",
     )
-    if uploaded_images and session_state.prev_uploaded_pictures != uploaded_images:
-        session_state.prev_uploaded_pictures = uploaded_images
+    if uploaded_images:
         for uploaded_img in uploaded_images:
             img_idx = len(session_state.image_paths)
             image_path = os.path.join(session_state.tempdir.name, f"uploaded_{img_idx}.jpg")
             with open(image_path, "wb") as f:
                 f.write(uploaded_img.getbuffer())
             session_state.image_paths.append(image_path)
+        session_state.session_key += 1
+        st.rerun()
 
     # Display nb of pictures taken
     st.write(f"{len(session_state.image_paths)} photo(s) taken.")
@@ -104,7 +106,7 @@ def create_audio_track_inputs(track_idx: int, track: defaultdict):
 
 def picture_from_camera():
     picture = st.camera_input("Take a photo")
-    # Rubber band aid fix: 
+    # Band aid fix: 
     # In case the clear photo button was not pressed the st.camera_input will return the last picture taken.
     # This would erroneously add the same picture to the image paths.
     if picture is not None and session_state.prev_picture != picture:
