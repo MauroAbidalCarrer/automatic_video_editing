@@ -20,6 +20,11 @@ def main():
 
     st.subheader("Step 1: Capture Photos")
 
+    if len(image_paths) > 0:
+        st.write(f"{len(image_paths)} photo(s) taken.")
+        if st.button("Reset Photos"):
+            st.session_state.image_paths = []
+
     picture = st.camera_input("Take a photo")
     if picture is not None and st.session_state.prev_picture != picture:
         st.session_state.prev_picture = picture
@@ -30,11 +35,6 @@ def main():
         image_paths.append(image_path)
         st.success(f"Captured photo #{img_idx + 1}")
 
-    if len(image_paths) > 0:
-        st.write(f"{len(image_paths)} photo(s) taken.")
-        if st.button("Reset Photos"):
-            st.session_state.image_paths = []
-            st.experimental_rerun()
 
     st.subheader("Step 2: Upload Audio")
     audio_file = st.file_uploader(label="Upload Audio File")
