@@ -46,7 +46,8 @@ def main():
         return
     # Audio
     st.subheader("Audio tracks")
-    create_audio_track_inputs(0)
+    for i in range(3):
+        create_audio_track_inputs(i)
     track_has_file = lambda track: track["file"] is not None
     if not all(map(track_has_file, session_state.audio_tracks)):
         st.warning("Please provide an audio file for all the audio tracks.")
@@ -77,7 +78,11 @@ def create_audio_track_inputs(line_index: int):
     print("len(audio_tracks):", len(audio_tracks), len(audio_tracks) <= line_index)
     if len(audio_tracks) <= line_index:
         print("Adding new audio track")
-        audio_track = defaultdict(file=None, bpm=DEFAULT_BPM, DEFAULT_DURATION=DEFAULT_DURATION)
+        audio_track = defaultdict(
+            file=None,
+            bpm=DEFAULT_BPM,
+            duration=DEFAULT_DURATION
+        )
         audio_tracks.append(audio_track)
     else:
         audio_track = session_state.audio_tracks[line_index]
