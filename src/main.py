@@ -1,7 +1,8 @@
 import os
 import base64
-from datetime import datetime
 import tempfile
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from collections import defaultdict
 from os.path import join, splitext, split
 
@@ -159,7 +160,7 @@ def create_new_clips():
     for clip in session_state.clips:
         os.remove(clip["path"])
     session_state.clips = []
-    datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
+    datetime_str = datetime.now(ZoneInfo("Europe/Paris")).strftime("%d-%m-%Y:%H-%M-%S")
     # session_state.last_creation_date_str = datetime_str
     for track in session_state.audio_tracks:
         clip_path, duration = create_clip(track)
