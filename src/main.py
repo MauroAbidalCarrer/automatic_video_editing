@@ -19,16 +19,13 @@ from config import (
     NB_KEYS_PER_AUDIO_TRACK,
     DUPLICATE_VIDEO_DOWNLOAD_KEY,
 )
-from s3_utils import upload_file_to_bucket, create_s3_key_url
+from s3_utils import upload_file_to_bucket
 
 
 def main():
-    st.title("Video Clip Creator")
-
-    # Set up the session
     if "tempdir" not in session_state:
         setup_session_state()
-
+    st.title("Video Clip Creator")
     # Audio tracks
     st.subheader("Audio tracks")
     # Add audio track
@@ -60,10 +57,17 @@ def main():
     display_image_carousel(session_state.image_paths)
 
     # Videos
-    if st.button("Create new videos"):
-        create_new_clips()
     if session_state.zipped_clips_s3_url is not None:
-        st.markdown(f"[link to all videos]({session_state.zipped_clips_s3_url})")
+        new_videos_col, link_col, _ = st.columns(3)
+        with new_videos_col:
+            create = st.button("Create new videos")
+        with link_col:
+            st.markdown(f"[link to all videos]({session_state.zipped_clips_s3_url})")
+    else:
+        create = st.button("Create new videos")
+    if create:
+        create_new_clips()
+        st.rerun()
     for clip in session_state.clips:
         try:
             display_video(clip)
@@ -145,7 +149,6 @@ def images_uploader():
             session_state.image_paths.append(image_path)
         session_state.session_key += 1
         st.rerun()
-
 
 def display_image_carousel(image_paths):
     # Read and encode all images to base64
