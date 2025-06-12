@@ -1,3 +1,5 @@
+.secrets.toml
+
 *.m4a
 *.png
 *.mp4
