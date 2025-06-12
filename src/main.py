@@ -28,10 +28,10 @@ def main():
         session_state.image_paths = []
         session_state.prev_picture = None
         session_state.session_key = 0
-        # list of dicts containing "file", "bpm" and "duration" keys
+        # list of dicts containing "file", "bpm" and "duration" keys/values
         session_state.audio_tracks = [mk_track_dict()]
-        # List of strings of the clips_paths paths 
-        session_state.clips_paths = []
+        # List of dicts with "path" and "s3_url" keys/values 
+        session_state.clips = []
 
     # Audio tracks
     st.subheader("Audio tracks")
@@ -83,8 +83,8 @@ def main():
     if st.button("Create new videos"):
         create_new_clips()
 
-    for video_filename in session_state.clips_paths:
-        display_video(video_filename)
+    for clip in session_state.clips:
+        display_video(clip)
 
 def mk_track_dict() -> defaultdict:
     return defaultdict(
@@ -149,12 +149,15 @@ def display_image_carousel(image_paths):
     html(html_code, height=180)
 
 def create_new_clips():
-    session_state.datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
-    for clip_path in session_state.clips_paths:
-        os.remove(clip_path)
-    session_state.clips_paths = []
+    for clip in session_state.clips:
+        os.remove(clip["path"])
+    session_state.clips = []
+    datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
     for track in session_state.audio_tracks:
-        session_state.clips_paths.append(create_clip(track))
+        clip_path = create_clip(track)
+        s3_url = upload_file_to_bucket(clip_path, join(datetime_str, clip_path))
+        session_state.clips.append({"path": clip_path, "s3_url": s3_url})
+
 
 def create_clip(track: defaultdict) -> str:
     """
@@ -168,7 +171,6 @@ def create_clip(track: defaultdict) -> str:
     video_filename = VIDEO_NAME_FORMAT.format(
         audio_name=audio_name,
         bpm=track["bpm"],
-        datetime_str=session_state.datetime_str
     )
     # For some reason, I couldn't access the file provided by the fileuploader.
     # So create a temp file as aid band fix (yet another one).
@@ -183,17 +185,21 @@ def create_clip(track: defaultdict) -> str:
         )
         return video_filename
 
-def display_video(video_file_path: str):
-    with open(video_file_path, "rb") as video_file:
-        clip_filename = split(video_file_path)[1]
+def display_video(clip: dict):
+    with open(clip["path"], "rb") as video_file:
+        clip_filename = split(clip["path"])[1]
         st.subheader(clip_filename)
         st.video(video_file.read())
-        st.download_button(
-            "Download Video",
-            video_file,
-            file_name=clip_filename,
-            key=video_file_path
-        )
+        button_col, url_col = st.columns(2)
+        with button_col:
+            st.download_button(
+                "Download Video",
+                video_file,
+                file_name=clip_filename,
+                key=clip["path"]
+            )
+        with url_col:
+            st.markdown(f"[link]({clip['s3_url']})")
 
 
 if __name__ == "__main__":
