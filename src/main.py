@@ -10,8 +10,13 @@ from streamlit import session_state
 from streamlit.components.v1 import html
 
 import video_editing
+from config import (
+    DEFAULT_BPM,
+    DEFAULT_DURATION,
+    NB_KEYS_PER_AUDIO_TRACK,
+    VIDEO_NAME_FORMAT
+)
 from s3_utils import upload_file_to_bucket
-from config import DEFAULT_BPM, DEFAULT_DURATION, NB_KEYS_PER_AUDIO_TRACK
 
 
 def main():
@@ -76,12 +81,7 @@ def main():
 
     # Videos
     if st.button("Create new videos"):
-        for clip_path in session_state.clips_paths:
-            print("deleting", clip_path)
-            os.remove(clip_path)
-        session_state.clips_paths = []
-        for track_idx, track in enumerate(session_state.audio_tracks):
-            session_state.clips_paths.append(create_clip(track))
+        create_new_clips()
 
     for video_filename in session_state.clips_paths:
         display_video(video_filename)
@@ -148,6 +148,14 @@ def display_image_carousel(image_paths):
     """
     html(html_code, height=180)
 
+def create_new_clips():
+    session_state.datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
+    for clip_path in session_state.clips_paths:
+        os.remove(clip_path)
+    session_state.clips_paths = []
+    for track in session_state.audio_tracks:
+        session_state.clips_paths.append(create_clip(track))
+
 def create_clip(track: defaultdict) -> str:
     """
     ### Description:
@@ -155,11 +163,13 @@ def create_clip(track: defaultdict) -> str:
     ### Returns:
     Returns the path to the clip file. 
     """
-    audio_path = join(session_state.tempdir.name, track["file"].name)
     audio_name, audio_ext = splitext(track["file"].name) 
-    datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
     # to str in case splitext returns None
-    video_filename = f"{str(audio_name)}_bpm{int(track['bpm'])}_{datetime_str}.mp4"
+    video_filename = VIDEO_NAME_FORMAT.format(
+        audio_name=audio_name,
+        bpm=track["bpm"],
+        datetime_str=session_state.datetime_str
+    )
     # For some reason, I couldn't access the file provided by the fileuploader.
     # So create a temp file as aid band fix (yet another one).
     with tempfile.NamedTemporaryFile(suffix=audio_ext) as audio_file:
