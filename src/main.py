@@ -193,9 +193,10 @@ def create_clip(track: defaultdict) -> tuple[str, float]:
     ### Description:
     Wrapper around video_editing.create_clip to prepare its inputs.
     ### Returns:
-    Returns the path to the clip file. 
+    Returns the path to the clip file and its duration. 
     """
-    audio_name, audio_ext = splitext(track["file"].name) 
+    audio_name, audio_ext = splitext(track["file"].name)
+    audio_name = str(audio_name).replace(" ", "_")
     # to str in case splitext returns None
     video_filename = VIDEO_NAME_FORMAT.format(
         audio_name=audio_name,
