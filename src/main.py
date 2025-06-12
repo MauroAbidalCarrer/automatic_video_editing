@@ -1,12 +1,15 @@
 import os
+import PIL
 import base64
 import zipfile
 import tempfile
-from datetime import datetime
+from io import BytesIO
 from zoneinfo import ZoneInfo
+from datetime import datetime
 from collections import defaultdict
 from os.path import join, splitext, split
 
+import qrcode
 import streamlit as st
 from streamlit import session_state
 from streamlit.components.v1 import html
@@ -58,11 +61,14 @@ def main():
 
     # Videos
     if session_state.zipped_clips_s3_url is not None:
-        new_videos_col, link_col, _ = st.columns(3)
+        new_videos_col, link_col, qrcode_col = st.columns(3)
         with new_videos_col:
             create = st.button("Create new videos")
         with link_col:
             st.markdown(f"[link to all videos]({session_state.zipped_clips_s3_url})")
+        with qrcode_col:
+            qr_img = generate_qr_code(session_state.zipped_clips_s3_url)
+            st.image(qr_img, caption="Scan to download")
     else:
         create = st.button("Create new videos")
     if create:
@@ -231,6 +237,16 @@ def display_video(clip: dict):
             )
         with url_col:
             st.markdown(f"[link]({clip['s3_url']})")
+
+def generate_qr_code(url: str) -> BytesIO:
+    qr = qrcode.QRCode(box_size=10, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
 
 
 if __name__ == "__main__":
