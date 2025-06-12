@@ -13,10 +13,11 @@ import video_editing
 from config import (
     DEFAULT_BPM,
     DEFAULT_DURATION,
+    VIDEO_NAME_FORMAT,
     NB_KEYS_PER_AUDIO_TRACK,
-    VIDEO_NAME_FORMAT
+    DUPLICATE_VIDEO_DOWNLOAD_KEY,
 )
-from s3_utils import upload_file_to_bucket
+from s3_utils import upload_file_to_bucket, create_s3_key_url
 
 
 def main():
@@ -32,6 +33,7 @@ def main():
         session_state.audio_tracks = [mk_track_dict()]
         # List of dicts with "path" and "s3_url" keys/values 
         session_state.clips = []
+        # session_state.last_creation_date_str = None
 
     # Audio tracks
     st.subheader("Audio tracks")
@@ -82,9 +84,14 @@ def main():
     # Videos
     if st.button("Create new videos"):
         create_new_clips()
-
+    # if session_state.last_creation_date_str is not None:
+    #     last_clips_folder_url = create_s3_key_url(session_state.last_creation_date_str)
+    #     st.markdown(f"[link to all videos]({last_clips_folder_url})")
     for clip in session_state.clips:
-        display_video(clip)
+        try:
+            display_video(clip)
+        except st.errors.StreamlitDuplicateElementKey:
+            st.text(DUPLICATE_VIDEO_DOWNLOAD_KEY)
 
 def mk_track_dict() -> defaultdict:
     return defaultdict(
@@ -153,13 +160,17 @@ def create_new_clips():
         os.remove(clip["path"])
     session_state.clips = []
     datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
+    # session_state.last_creation_date_str = datetime_str
     for track in session_state.audio_tracks:
-        clip_path = create_clip(track)
+        clip_path, duration = create_clip(track)
         s3_url = upload_file_to_bucket(clip_path, join(datetime_str, clip_path))
-        session_state.clips.append({"path": clip_path, "s3_url": s3_url})
+        session_state.clips.append({
+            "path": clip_path,
+            "s3_url": s3_url,
+            "duration": duration
+        })
 
-
-def create_clip(track: defaultdict) -> str:
+def create_clip(track: defaultdict) -> tuple[str, float]:
     """
     ### Description:
     Wrapper around video_editing.create_clip to prepare its inputs.
@@ -183,7 +194,7 @@ def create_clip(track: defaultdict) -> str:
             duration=track["duration"],
             output_path=video_filename
         )
-        return video_filename
+        return video_filename, track["duration"]
 
 def display_video(clip: dict):
     with open(clip["path"], "rb") as video_file:
@@ -196,7 +207,7 @@ def display_video(clip: dict):
                 "Download Video",
                 video_file,
                 file_name=clip_filename,
-                key=clip["path"]
+                key=clip["path"] + str(clip["duration"])
             )
         with url_col:
             st.markdown(f"[link]({clip['s3_url']})")

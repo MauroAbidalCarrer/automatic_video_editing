@@ -5,3 +5,4 @@ DEFAULT_DURATION = 2.0
 # This number includes the inputs in the video section as well.
 NB_KEYS_PER_AUDIO_TRACK = 5
 VIDEO_NAME_FORMAT = "{audio_name}_bpm{bpm}.mp4"
+DUPLICATE_VIDEO_DOWNLOAD_KEY = "Dupliacate key caught, video is duplicate of a previous one, no download Button."

@@ -26,8 +26,10 @@ def upload_file_to_bucket(local_src_path: str, remote_dest_path: str) -> str:
     """
     s3_client.upload_file(local_src_path, BUCKET_NAME, remote_dest_path)
     s3_client.put_object_acl(ACL="public-read", Bucket=BUCKET_NAME, Key=remote_dest_path)
-    return f"https://{BUCKET_NAME}.s3.{REGION_NAME}.scw.cloud/{remote_dest_path}" #join(ENPOINT_URL, remote_dest_path)
-# https://domnique-videos.s3.fr-par.scw.cloud/requirements.txt
+    return create_s3_key_url(remote_dest_path)
+
+def create_s3_key_url(path: str) -> str:
+    return f"https://{BUCKET_NAME}.s3.{REGION_NAME}.scw.cloud/{path}"
 
 if __name__ == "__main__":
     if len(argv) < 3:
