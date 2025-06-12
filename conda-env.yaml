@@ -6,6 +6,7 @@ dependencies:
   - python=3.11.5
   - streamlit==1.45.1
   - boto3==1.38.34
+  - qrcode==8.2
   - pip
   - pip:
     - moviepy==2.1.2
