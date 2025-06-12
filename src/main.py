@@ -1,11 +1,16 @@
 import os
+import base64
+from datetime import datetime
 import tempfile
+from os.path import join, splitext
 from collections import defaultdict
 
 import streamlit as st
 from streamlit import session_state
+from streamlit.components.v1 import html
 
-from video_editing import create_clip
+import video_editing
+from s3_utils import upload_file_to_bucket
 from config import DEFAULT_BPM, DEFAULT_DURATION, NB_KEYS_PER_AUDIO_TRACK
 
 
@@ -66,16 +71,12 @@ def main():
         return
     st.subheader("Preview")
     display_image_carousel(session_state.image_paths)
-    # cols = st.columns(min(len(session_state.image_paths), 2))  # Display up to 5 images per row
-    # for idx, image_path in enumerate(session_state.image_paths):
-    #     with cols[idx % 5]:  # Wrap images across rows
-    #         st.image(image_path, use_container_width=True, caption=f"#{idx + 1}")
-
 
     # Videos
     if st.button("Create Video"):
         for track_idx, track in enumerate(session_state.audio_tracks):
-            create_and_display_video(track_idx, track)
+            video_filename = create_clip(track)
+            display_video(track_idx, video_filename)
 
 def mk_track_dict() -> defaultdict:
     return defaultdict(
@@ -124,9 +125,6 @@ def picture_from_camera():
             f.write(picture.getbuffer())
         session_state.image_paths.append(image_path)
 
-from streamlit.components.v1 import html
-import base64
-
 def display_image_carousel(image_paths):
     # Read and encode all images to base64
     base64_images = []
@@ -134,7 +132,6 @@ def display_image_carousel(image_paths):
         with open(path, "rb") as img_file:
             b64 = base64.b64encode(img_file.read()).decode("utf-8")
             base64_images.append(f"data:image/jpeg;base64,{b64}")
-
     # Build the HTML carousel
     html_code = f"""
     <div style="display: flex; overflow-x: auto; gap: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 10px;">
@@ -143,27 +140,41 @@ def display_image_carousel(image_paths):
     """
     html(html_code, height=180)
 
-def create_and_display_video(track_idx: int, track: defaultdict):
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
-        audio_path = os.path.join(session_state.tempdir.name, track["file"].name)
-        with open(audio_path, "wb") as f:
-            f.write(track["file"].getbuffer())
-        create_clip(
+def create_clip(track: defaultdict) -> str:
+    """
+    ### Description:
+    Wrapper around video_editing.create_clip to prepare its inputs.
+    ### Returns:
+    Returns the path to the clip file. 
+    """
+    audio_path = join(session_state.tempdir.name, track["file"].name)
+    audio_name, audio_ext = splitext(track["file"].name) 
+    datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
+    # to str in case splitext returns None
+    video_filename = f"{str(audio_name)}_bpm{int(track['bpm'])}_{datetime_str}.mp4"
+    # For some reason, I couldn't access the file provided by the fileuploader.
+    # So create a temp file as aid band fix (yet another one).
+    with tempfile.NamedTemporaryFile(suffix=audio_ext) as audio_file:
+        audio_file.write(track["file"].getbuffer())
+        video_editing.create_clip(
             image_paths=session_state.image_paths,
-            audio_path=audio_path,
+            audio_path=audio_file.name,
             bpm=track["bpm"],
             duration=track["duration"],
-            output_path=out_file.name
+            output_path=video_filename
         )
-        f = open(out_file.name, "rb")
-        st.video(f.read())
+        return video_filename
+
+def display_video(track_idx: int, video_file_path:str):
+    with open(video_file_path, "rb") as video_file:
+        st.video(video_file.read())
         st.download_button(
             "Download Video",
-            f,
+            video_file,
             file_name="output.mp4",
             key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 4
         )
-        f.close()
+
 
 if __name__ == "__main__":
     main()
