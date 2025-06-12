@@ -1,12 +1,15 @@
 import os
+import PIL
 import base64
 import zipfile
 import tempfile
-from datetime import datetime
+from io import BytesIO
 from zoneinfo import ZoneInfo
+from datetime import datetime
 from collections import defaultdict
 from os.path import join, splitext, split
 
+import qrcode
 import streamlit as st
 from streamlit import session_state
 from streamlit.components.v1 import html
@@ -19,16 +22,13 @@ from config import (
     NB_KEYS_PER_AUDIO_TRACK,
     DUPLICATE_VIDEO_DOWNLOAD_KEY,
 )
-from s3_utils import upload_file_to_bucket, create_s3_key_url
+from s3_utils import upload_file_to_bucket
 
 
 def main():
-    st.title("Video Clip Creator")
-
-    # Set up the session
     if "tempdir" not in session_state:
         setup_session_state()
-
+    st.title("Video Clip Creator")
     # Audio tracks
     st.subheader("Audio tracks")
     # Add audio track
@@ -60,10 +60,20 @@ def main():
     display_image_carousel(session_state.image_paths)
 
     # Videos
-    if st.button("Create new videos"):
-        create_new_clips()
     if session_state.zipped_clips_s3_url is not None:
-        st.markdown(f"[link to all videos]({session_state.zipped_clips_s3_url})")
+        new_videos_col, link_col, qrcode_col = st.columns(3)
+        with new_videos_col:
+            create = st.button("Create new videos")
+        with link_col:
+            st.markdown(f"[link to all videos]({session_state.zipped_clips_s3_url})")
+        with qrcode_col:
+            qr_img = generate_qr_code(session_state.zipped_clips_s3_url)
+            st.image(qr_img, caption="Scan to download zip file")
+    else:
+        create = st.button("Create new videos")
+    if create:
+        create_new_clips()
+        st.rerun()
     for clip in session_state.clips:
         try:
             display_video(clip)
@@ -146,7 +156,6 @@ def images_uploader():
         session_state.session_key += 1
         st.rerun()
 
-
 def display_image_carousel(image_paths):
     # Read and encode all images to base64
     base64_images = []
@@ -218,7 +227,7 @@ def display_video(clip: dict):
         clip_filename = split(clip["path"])[1]
         st.subheader(clip_filename)
         st.video(video_file.read())
-        button_col, url_col = st.columns(2)
+        button_col, url_col, qrcode_col = st.columns(3)
         with button_col:
             st.download_button(
                 "Download Video",
@@ -228,6 +237,20 @@ def display_video(clip: dict):
             )
         with url_col:
             st.markdown(f"[link]({clip['s3_url']})")
+        with qrcode_col:
+            qr_img = generate_qr_code(clip["s3_url"])
+            st.image(qr_img, caption="Scan to download zip file")
+
+
+def generate_qr_code(url: str) -> BytesIO:
+    qr = qrcode.QRCode(box_size=10, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
 
 
 if __name__ == "__main__":
