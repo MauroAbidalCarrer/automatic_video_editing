@@ -49,23 +49,7 @@ def main():
         session_state.image_paths = []
     # Take pictures
     picture_from_camera()
-    # Add image uploader to upload multiple images
-    uploaded_images = st.file_uploader(
-        "Upload image(s)",
-        accept_multiple_files=True,
-        key=f"uploaded_images_{session_state.session_key}",
-        label_visibility="visible",
-    )
-    if uploaded_images:
-        for uploaded_img in uploaded_images:
-            img_idx = len(session_state.image_paths)
-            image_path = os.path.join(session_state.tempdir.name, f"uploaded_{img_idx}.jpg")
-            with open(image_path, "wb") as f:
-                f.write(uploaded_img.getbuffer())
-            session_state.image_paths.append(image_path)
-        session_state.session_key += 1
-        st.rerun()
-
+    images_uploader()
     # Display nb of pictures taken
     st.write(f"{len(session_state.image_paths)} photo(s) taken.")
     # Check that at least one picture has been taken
@@ -143,6 +127,25 @@ def picture_from_camera():
         with open(image_path, "wb") as f:
             f.write(picture.getbuffer())
         session_state.image_paths.append(image_path)
+
+def images_uploader():
+    # Add image uploader to upload multiple images
+    uploaded_images = st.file_uploader(
+        "Upload image(s)",
+        accept_multiple_files=True,
+        key=f"uploaded_images_{session_state.session_key}",
+        label_visibility="visible",
+    )
+    if uploaded_images:
+        for uploaded_img in uploaded_images:
+            img_idx = len(session_state.image_paths)
+            image_path = os.path.join(session_state.tempdir.name, f"uploaded_{img_idx}.jpg")
+            with open(image_path, "wb") as f:
+                f.write(uploaded_img.getbuffer())
+            session_state.image_paths.append(image_path)
+        session_state.session_key += 1
+        st.rerun()
+
 
 def display_image_carousel(image_paths):
     # Read and encode all images to base64
