@@ -1,4 +1,3 @@
 streamlit==1.45.1
 moviepy==2.1.2
 boto3==1.38.34
-python-dotenv==1.1.0

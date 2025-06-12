@@ -6,7 +6,6 @@ dependencies:
   - python=3.11.5
   - streamlit==1.45.1
   - boto3==1.38.34
-  - python-dotenv==1.1.0
   - pip
   - pip:
     - moviepy==2.1.2
