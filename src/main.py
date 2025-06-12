@@ -1,5 +1,6 @@
 import os
 import base64
+import zipfile
 import tempfile
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -26,15 +27,7 @@ def main():
 
     # Set up the session
     if "tempdir" not in session_state:
-        session_state.tempdir = tempfile.TemporaryDirectory()
-        session_state.image_paths = []
-        session_state.prev_picture = None
-        session_state.session_key = 0
-        # list of dicts containing "file", "bpm" and "duration" keys/values
-        session_state.audio_tracks = [mk_track_dict()]
-        # List of dicts with "path" and "s3_url" keys/values 
-        session_state.clips = []
-        # session_state.last_creation_date_str = None
+        setup_session_state()
 
     # Audio tracks
     st.subheader("Audio tracks")
@@ -56,23 +49,7 @@ def main():
         session_state.image_paths = []
     # Take pictures
     picture_from_camera()
-    # Add image uploader to upload multiple images
-    uploaded_images = st.file_uploader(
-        "Upload image(s)",
-        accept_multiple_files=True,
-        key=f"uploaded_images_{session_state.session_key}",
-        label_visibility="visible",
-    )
-    if uploaded_images:
-        for uploaded_img in uploaded_images:
-            img_idx = len(session_state.image_paths)
-            image_path = os.path.join(session_state.tempdir.name, f"uploaded_{img_idx}.jpg")
-            with open(image_path, "wb") as f:
-                f.write(uploaded_img.getbuffer())
-            session_state.image_paths.append(image_path)
-        session_state.session_key += 1
-        st.rerun()
-
+    images_uploader()
     # Display nb of pictures taken
     st.write(f"{len(session_state.image_paths)} photo(s) taken.")
     # Check that at least one picture has been taken
@@ -85,14 +62,24 @@ def main():
     # Videos
     if st.button("Create new videos"):
         create_new_clips()
-    # if session_state.last_creation_date_str is not None:
-    #     last_clips_folder_url = create_s3_key_url(session_state.last_creation_date_str)
-    #     st.markdown(f"[link to all videos]({last_clips_folder_url})")
+    if session_state.zipped_clips_s3_url is not None:
+        st.markdown(f"[link to all videos]({session_state.zipped_clips_s3_url})")
     for clip in session_state.clips:
         try:
             display_video(clip)
         except st.errors.StreamlitDuplicateElementKey:
             st.text(DUPLICATE_VIDEO_DOWNLOAD_KEY)
+
+def setup_session_state():
+    session_state.tempdir = tempfile.TemporaryDirectory()
+    session_state.image_paths = []
+    session_state.prev_picture = None
+    session_state.session_key = 0
+    # list of dicts containing "file", "bpm" and "duration" keys/values
+    session_state.audio_tracks = [mk_track_dict()]
+    # List of dicts with "path" and "s3_url" keys/values 
+    session_state.clips = []
+    session_state.zipped_clips_s3_url = None
 
 def mk_track_dict() -> defaultdict:
     return defaultdict(
@@ -141,6 +128,25 @@ def picture_from_camera():
             f.write(picture.getbuffer())
         session_state.image_paths.append(image_path)
 
+def images_uploader():
+    # Add image uploader to upload multiple images
+    uploaded_images = st.file_uploader(
+        "Upload image(s)",
+        accept_multiple_files=True,
+        key=f"uploaded_images_{session_state.session_key}",
+        label_visibility="visible",
+    )
+    if uploaded_images:
+        for uploaded_img in uploaded_images:
+            img_idx = len(session_state.image_paths)
+            image_path = os.path.join(session_state.tempdir.name, f"uploaded_{img_idx}.jpg")
+            with open(image_path, "wb") as f:
+                f.write(uploaded_img.getbuffer())
+            session_state.image_paths.append(image_path)
+        session_state.session_key += 1
+        st.rerun()
+
+
 def display_image_carousel(image_paths):
     # Read and encode all images to base64
     base64_images = []
@@ -161,7 +167,6 @@ def create_new_clips():
         os.remove(clip["path"])
     session_state.clips = []
     datetime_str = datetime.now(ZoneInfo("Europe/Paris")).strftime("%d-%m-%Y:%H-%M-%S")
-    # session_state.last_creation_date_str = datetime_str
     for track in session_state.audio_tracks:
         clip_path, duration = create_clip(track)
         s3_url = upload_file_to_bucket(clip_path, join(datetime_str, clip_path))
@@ -170,6 +175,9 @@ def create_new_clips():
             "s3_url": s3_url,
             "duration": duration
         })
+    zipped_clips_path = zip_all_clips(datetime_str)
+    zipped_clips_s3_url = upload_file_to_bucket(zipped_clips_path, datetime_str + ".zip")
+    session_state.zipped_clips_s3_url = zipped_clips_s3_url
 
 def create_clip(track: defaultdict) -> tuple[str, float]:
     """
@@ -196,6 +204,14 @@ def create_clip(track: defaultdict) -> tuple[str, float]:
             output_path=video_filename
         )
         return video_filename, track["duration"]
+
+def zip_all_clips(zip_filename: str) -> str:
+    zip_path = os.path.join(session_state.tempdir.name, zip_filename) + ".zip"
+    with zipfile.ZipFile(zip_path, "w") as zipf:
+        for clip in session_state.clips:
+            arcname = os.path.basename(clip["path"])  # Name inside zip
+            zipf.write(clip["path"], arcname=arcname)
+    return zip_path
 
 def display_video(clip: dict):
     with open(clip["path"], "rb") as video_file:
