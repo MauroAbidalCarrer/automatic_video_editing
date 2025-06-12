@@ -1,3 +1,5 @@
+.streamlit/*
+
 *.m4a
 *.png
 *.mp4

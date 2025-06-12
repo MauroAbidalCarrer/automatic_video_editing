@@ -1,12 +1,23 @@
 import os
+import base64
+from datetime import datetime
 import tempfile
 from collections import defaultdict
+from os.path import join, splitext, split
 
 import streamlit as st
 from streamlit import session_state
+from streamlit.components.v1 import html
 
-from video_editing import create_clip
-from config import DEFAULT_BPM, DEFAULT_DURATION, NB_KEYS_PER_AUDIO_TRACK
+import video_editing
+from config import (
+    DEFAULT_BPM,
+    DEFAULT_DURATION,
+    VIDEO_NAME_FORMAT,
+    NB_KEYS_PER_AUDIO_TRACK,
+    DUPLICATE_VIDEO_DOWNLOAD_KEY,
+)
+from s3_utils import upload_file_to_bucket, create_s3_key_url
 
 
 def main():
@@ -18,13 +29,16 @@ def main():
         session_state.image_paths = []
         session_state.prev_picture = None
         session_state.session_key = 0
-        # list of dicts containing keys file, bpm and duration
+        # list of dicts containing "file", "bpm" and "duration" keys/values
         session_state.audio_tracks = [mk_track_dict()]
+        # List of dicts with "path" and "s3_url" keys/values 
+        session_state.clips = []
+        # session_state.last_creation_date_str = None
 
     # Audio tracks
     st.subheader("Audio tracks")
     # Add audio track
-    if st.button("Add new audio track"):
+    if st.button(r"\+ audio track"):
         session_state.audio_tracks.append(mk_track_dict())
     # audio track inputs
     for track_idx, track in enumerate(session_state.audio_tracks):
@@ -64,18 +78,20 @@ def main():
     if len(session_state.image_paths) == 0:
         st.warning("Please take at least one photo and upload an audio file.")
         return
-    st.subheader("Preview")
+    st.subheader("Images")
     display_image_carousel(session_state.image_paths)
-    # cols = st.columns(min(len(session_state.image_paths), 2))  # Display up to 5 images per row
-    # for idx, image_path in enumerate(session_state.image_paths):
-    #     with cols[idx % 5]:  # Wrap images across rows
-    #         st.image(image_path, use_container_width=True, caption=f"#{idx + 1}")
-
 
     # Videos
-    if st.button("Create Video"):
-        for track_idx, track in enumerate(session_state.audio_tracks):
-            create_and_display_video(track_idx, track)
+    if st.button("Create new videos"):
+        create_new_clips()
+    # if session_state.last_creation_date_str is not None:
+    #     last_clips_folder_url = create_s3_key_url(session_state.last_creation_date_str)
+    #     st.markdown(f"[link to all videos]({last_clips_folder_url})")
+    for clip in session_state.clips:
+        try:
+            display_video(clip)
+        except st.errors.StreamlitDuplicateElementKey:
+            st.text(DUPLICATE_VIDEO_DOWNLOAD_KEY)
 
 def mk_track_dict() -> defaultdict:
     return defaultdict(
@@ -124,9 +140,6 @@ def picture_from_camera():
             f.write(picture.getbuffer())
         session_state.image_paths.append(image_path)
 
-from streamlit.components.v1 import html
-import base64
-
 def display_image_carousel(image_paths):
     # Read and encode all images to base64
     base64_images = []
@@ -134,7 +147,6 @@ def display_image_carousel(image_paths):
         with open(path, "rb") as img_file:
             b64 = base64.b64encode(img_file.read()).decode("utf-8")
             base64_images.append(f"data:image/jpeg;base64,{b64}")
-
     # Build the HTML carousel
     html_code = f"""
     <div style="display: flex; overflow-x: auto; gap: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 10px;">
@@ -143,27 +155,63 @@ def display_image_carousel(image_paths):
     """
     html(html_code, height=180)
 
-def create_and_display_video(track_idx: int, track: defaultdict):
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as out_file:
-        audio_path = os.path.join(session_state.tempdir.name, track["file"].name)
-        with open(audio_path, "wb") as f:
-            f.write(track["file"].getbuffer())
-        create_clip(
+def create_new_clips():
+    for clip in session_state.clips:
+        os.remove(clip["path"])
+    session_state.clips = []
+    datetime_str = datetime.now().strftime("%d-%m-%Y:%H-%M-%S")
+    # session_state.last_creation_date_str = datetime_str
+    for track in session_state.audio_tracks:
+        clip_path, duration = create_clip(track)
+        s3_url = upload_file_to_bucket(clip_path, join(datetime_str, clip_path))
+        session_state.clips.append({
+            "path": clip_path,
+            "s3_url": s3_url,
+            "duration": duration
+        })
+
+def create_clip(track: defaultdict) -> tuple[str, float]:
+    """
+    ### Description:
+    Wrapper around video_editing.create_clip to prepare its inputs.
+    ### Returns:
+    Returns the path to the clip file. 
+    """
+    audio_name, audio_ext = splitext(track["file"].name) 
+    # to str in case splitext returns None
+    video_filename = VIDEO_NAME_FORMAT.format(
+        audio_name=audio_name,
+        bpm=track["bpm"],
+    )
+    # For some reason, I couldn't access the file provided by the fileuploader.
+    # So create a temp file as aid band fix (yet another one).
+    with tempfile.NamedTemporaryFile(suffix=audio_ext) as audio_file:
+        audio_file.write(track["file"].getbuffer())
+        video_editing.create_clip(
             image_paths=session_state.image_paths,
-            audio_path=audio_path,
+            audio_path=audio_file.name,
             bpm=track["bpm"],
             duration=track["duration"],
-            output_path=out_file.name
+            output_path=video_filename
         )
-        f = open(out_file.name, "rb")
-        st.video(f.read())
-        st.download_button(
-            "Download Video",
-            f,
-            file_name="output.mp4",
-            key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 4
-        )
-        f.close()
+        return video_filename, track["duration"]
+
+def display_video(clip: dict):
+    with open(clip["path"], "rb") as video_file:
+        clip_filename = split(clip["path"])[1]
+        st.subheader(clip_filename)
+        st.video(video_file.read())
+        button_col, url_col = st.columns(2)
+        with button_col:
+            st.download_button(
+                "Download Video",
+                video_file,
+                file_name=clip_filename,
+                key=clip["path"] + str(clip["duration"])
+            )
+        with url_col:
+            st.markdown(f"[link]({clip['s3_url']})")
+
 
 if __name__ == "__main__":
     main()
