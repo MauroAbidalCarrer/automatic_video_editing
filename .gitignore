@@ -1,4 +1,4 @@
-.secrets.toml
+.streamlit/*
 
 *.m4a
 *.png
