@@ -2,8 +2,8 @@ import os
 import base64
 from datetime import datetime
 import tempfile
-from os.path import join, splitext
 from collections import defaultdict
+from os.path import join, splitext, split
 
 import streamlit as st
 from streamlit import session_state
@@ -23,13 +23,15 @@ def main():
         session_state.image_paths = []
         session_state.prev_picture = None
         session_state.session_key = 0
-        # list of dicts containing keys file, bpm and duration
+        # list of dicts containing "file", "bpm" and "duration" keys
         session_state.audio_tracks = [mk_track_dict()]
+        # List of strings of the clips_paths paths 
+        session_state.clips_paths = []
 
     # Audio tracks
     st.subheader("Audio tracks")
     # Add audio track
-    if st.button("Add new audio track"):
+    if st.button(r"\+ audio track"):
         session_state.audio_tracks.append(mk_track_dict())
     # audio track inputs
     for track_idx, track in enumerate(session_state.audio_tracks):
@@ -69,14 +71,20 @@ def main():
     if len(session_state.image_paths) == 0:
         st.warning("Please take at least one photo and upload an audio file.")
         return
-    st.subheader("Preview")
+    st.subheader("Images")
     display_image_carousel(session_state.image_paths)
 
     # Videos
-    if st.button("Create Video"):
+    if st.button("Create new videos"):
+        for clip_path in session_state.clips_paths:
+            print("deleting", clip_path)
+            os.remove(clip_path)
+        session_state.clips_paths = []
         for track_idx, track in enumerate(session_state.audio_tracks):
-            video_filename = create_clip(track)
-            display_video(track_idx, video_filename)
+            session_state.clips_paths.append(create_clip(track))
+
+    for video_filename in session_state.clips_paths:
+        display_video(video_filename)
 
 def mk_track_dict() -> defaultdict:
     return defaultdict(
@@ -165,14 +173,16 @@ def create_clip(track: defaultdict) -> str:
         )
         return video_filename
 
-def display_video(track_idx: int, video_file_path:str):
+def display_video(video_file_path: str):
     with open(video_file_path, "rb") as video_file:
+        clip_filename = split(video_file_path)[1]
+        st.subheader(clip_filename)
         st.video(video_file.read())
         st.download_button(
             "Download Video",
             video_file,
-            file_name="output.mp4",
-            key=track_idx * NB_KEYS_PER_AUDIO_TRACK + 4
+            file_name=clip_filename,
+            key=video_file_path
         )
 
 
