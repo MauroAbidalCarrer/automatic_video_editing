@@ -68,7 +68,7 @@ def main():
             st.markdown(f"[link to all videos]({session_state.zipped_clips_s3_url})")
         with qrcode_col:
             qr_img = generate_qr_code(session_state.zipped_clips_s3_url)
-            st.image(qr_img, caption="Scan to download")
+            st.image(qr_img, caption="Scan to download zip file")
     else:
         create = st.button("Create new videos")
     if create:
@@ -227,7 +227,7 @@ def display_video(clip: dict):
         clip_filename = split(clip["path"])[1]
         st.subheader(clip_filename)
         st.video(video_file.read())
-        button_col, url_col = st.columns(2)
+        button_col, url_col, qrcode_col = st.columns(3)
         with button_col:
             st.download_button(
                 "Download Video",
@@ -237,6 +237,10 @@ def display_video(clip: dict):
             )
         with url_col:
             st.markdown(f"[link]({clip['s3_url']})")
+        with qrcode_col:
+            qr_img = generate_qr_code(clip["s3_url"])
+            st.image(qr_img, caption="Scan to download zip file")
+
 
 def generate_qr_code(url: str) -> BytesIO:
     qr = qrcode.QRCode(box_size=10, border=2)
